@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOF Smart Calendar Elite V6</title>
+
+<style>
+:root {
+  --pink: #ff73bb;
+  --soft-pink: #ffe1f0;
+  --gold: #d4af37;
+  --black: #18121c;
+  --panel: #2b1c2d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--black);
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+header {
+  padding: 18px;
+  text-align: center;
+  background: linear-gradient(120deg, #ff83c5, #351c35);
+  border-bottom: 3px solid var(--gold);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 28px;
+  color: white;
+  text-shadow: 1px 2px 4px #7a265b;
+}
+
+header p {
+  margin: 8px 0 0;
+  color: var(--soft-pink);
+}
+
+.clock {
+  margin-top: 10px;
+  color: white;
+  font-size: 13px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 15px;
+  padding: 15px;
+}
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.month {
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.month h2 {
+  text-align: center;
+  font-size: 17px;
+  color: var(--pink);
+  margin: 0 0 12px;
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.weekday {
+  color: var(--gold);
+  font-weight: bold;
+  text-align: center;
+  font-size: 11px;
+}
+
+.day {
+  min-height: 30px;
+  padding: 6px 2px;
+  text-align: center;
+  border-radius: 6px;
+  background: #493049;
+  cursor: pointer;
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+
+.day:hover {
+  background: var(--pink);
+  color: black;
+}
+
+.today {
+  border: 2px solid var(--gold);
+  background: #8e376b;
+}
+
+.empty {
+  background: transparent;
+}
+
+.sidebar {
+  background: var(--panel);
+  border: 2px solid var(--gold);
+  border-radius: 14px;
+  padding: 15px;
+}
+
+.sidebar h2 {
+  color: var(--pink);
+  text-align: center;
+  font-size: 20px;
+}
+
+.event {
+  padding: 12px;
+  margin: 12px 0;
+  border-radius: 8px;
+  background: #4b3048;
+  border-left: 4px solid var(--gold);
+}
+
+.event strong {
+  color: var(--soft-pink);
+}
+
+.event small {
+  display: block;
+  margin-top: 6px;
+  color: #e4c9dd;
+}
+
+button {
+  background: var(--pink);
+  color: #211322;
+  border: 1px solid var(--gold);
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+button:hover {
+  background: var(--soft-pink);
+}
+
+#popup {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.popup-box {
+  background: #342137;
+  border: 2px solid var(--gold);
+  border-radius: 15px;
+  padding: 25px;
+  width: min(90%, 420px);
+  text-align: center;
+}
+
+.popup-box h2 {
+  color: var(--pink);
+}
+
+footer {
+  text-align: center;
+  padding: 15px;
+  color: var(--gold);
+  font-size: 12px;
+}
+
+@media (max-width: 750px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>🎀 HOF SMART CALENDAR 🎀</h1>
+  <p>House of Fierce Creations | Elite V6</p>
+  <div class="clock" id="clock"></div>
+</header>
+
+<div class="layout">
+
+  <main class="calendar" id="calendar"></main>
+
+  <aside class="sidebar">
+    <h2>🎀 Upcoming Events</h2>
+
+    <div id="events"></div>
+
+    <button onclick="showSchedule()">
+      View Upcoming Schedule
+    </button>
+
+    <p style="font-size:12px;color:#e4c9dd;margin-top:20px;">
+      💗 Public events will appear here.
+      Private events require authorized access.
+    </p>
+  </aside>
+
+</div>
+
+<div id="popup">
+  <div class="popup-box">
+    <h2 id="popupTitle"></h2>
+    <p id="popupText"></p>
+    <button onclick="closePopup()">Close</button>
+  </div>
+</div>
+
+<footer>
+  👑 House of Fierce Creations — Fiercely Made
+</footer>
+
+<script>
+const calendar = document.getElementById("calendar");
+const eventContainer = document.getElementById("events");
+
+const weekdays = ["S", "M", "T", "W", "T", "F", "S"];
+
+const monthNames = [
+  "January", "February", "March", "April",
+  "May", "June", "July", "August",
+  "September", "October", "November", "December"
+];
+
+// Prototype only: no real events are stored yet.
+const publicEvents = [];
+
+function dateKey(year, month, day) {
+  return (
+    year + "-" +
+    String(month + 1).padStart(2, "0") + "-" +
+    String(day).padStart(2, "0")
+  );
+}
+
+function renderCalendar() {
+  calendar.innerHTML = "";
+
+  const today = new Date();
+
+  for (let offset = 0; offset < 10; offset++) {
+    const first = new Date(
+      today.getFullYear(),
+      today.getMonth() + offset,
+      1
+    );
+
+    const year = first.getFullYear();
+    const month = first.getMonth();
+
+    const monthBox = document.createElement("section");
+    monthBox.className = "month";
+
+    const title = document.createElement("h2");
+    title.textContent = monthNames[month] + " " + year;
+    monthBox.appendChild(title);
+
+    const daysGrid = document.createElement("div");
+    daysGrid.className = "days";
+
+    weekdays.forEach(day => {
+      const label = document.createElement("div");
+      label.className = "weekday";
+      label.textContent = day;
+      daysGrid.appendChild(label);
+    });
+
+    for (let blank = 0; blank < first.getDay(); blank++) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      daysGrid.appendChild(empty);
+    }
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const cell = document.createElement("div");
+      cell.className = "day";
+      cell.textContent = day;
+
+      if (
+        year === today.getFullYear() &&
+        month === today.getMonth() &&
+        day === today.getDate()
+      ) {
+        cell.classList.add("today");
+      }
+
+      const key = dateKey(year, month, day);
+
+      cell.onclick = () => openDate(key);
+
+      daysGrid.appendChild(cell);
+    }
+
+    monthBox.appendChild(daysGrid);
+    calendar.appendChild(monthBox);
+  }
+}
+
+function openDate(date) {
+  const matches = publicEvents.filter(event => event.date === date);
+
+  document.getElementById("popupTitle").textContent =
+    "🎀 " + date;
+
+  document.getElementById("popupText").textContent =
+    matches.length
+      ? matches.map(event => event.title).join(", ")
+      : "No public events scheduled for this date.";
+
+  document.getElementById("popup").style.display = "flex";
+}
+
+function closePopup() {
+  document.getElementById("popup").style.display = "none";
+}
+
+function renderEvents() {
+  eventContainer.innerHTML = "";
+
+  if (!publicEvents.length) {
+    eventContainer.innerHTML = `
+      <div class="event">
+        <strong>No upcoming events yet</strong>
+        <small>Events will appear after we connect the scheduling system.</small>
+      </div>
+    `;
+    return;
+  }
+
+  publicEvents.forEach(event => {
+    const item = document.createElement("div");
+    item.className = "event";
+    item.textContent = event.title + " — " + event.date;
+    eventContainer.appendChild(item);
+  });
+}
+
+function showSchedule() {
+  document.getElementById("popupTitle").textContent =
+    "💗 Upcoming Schedule";
+
+  document.getElementById("popupText").textContent =
+    publicEvents.length
+      ? publicEvents.map(event =>
+          event.title + " — " + event.date
+        ).join(" | ")
+      : "There are no public events scheduled yet.";
+
+  document.getElementById("popup").style.display = "flex";
+}
+
+function updateClock() {
+  const now = new Date();
+
+  const eastern = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(now);
+
+  const slt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(now);
+
+  document.getElementById("clock").textContent =
+    "💗 Eastern: " + eastern + " | 👑 SLT: " + slt;
+}
+
+renderCalendar();
+renderEvents();
+updateClock();
+
+setInterval(updateClock, 30000);
+setInterval(renderCalendar, 60000);
+</script>
+
+</body>
+</html>
